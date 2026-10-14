@@ -1,0 +1,10 @@
+"""HTTP-константы."""
+
+API_PREFIX = "/api/v1"
+API_KEY_HEADER = "X-API-Key"
+ROUTE_NOT_FOUND_MESSAGE = "Route not found"
+PAYMENT_NOT_FOUND_MESSAGE = "Payment not found"
+VALIDATION_ERROR_MESSAGE = "Request validation failed"
+UNAUTHORIZED_MESSAGE = "Unauthorized"
+IDEMPOTENCY_KEY_REUSED_MESSAGE = "Idempotency key was reused with a different request"
+INTERNAL_ERROR_MESSAGE = "Internal Server Error"

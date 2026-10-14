@@ -1,0 +1,108 @@
+[project]
+name = "payment-processing-mkk"
+version = "0.1.0"
+description = "Асинхронный сервис процессинга платежей"
+requires-python = "==3.12.*"
+dependencies = [
+    "fastapi==0.141.1",
+    "starlette==1.7.0",
+    "uvicorn==0.54.0",
+    "sqlalchemy[asyncio]==2.1.1",
+    "asyncpg==0.31.0",
+    "alembic==1.20.0",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "httpx==0.28.1",
+    "faststream[rabbit]==0.7.7",
+    "aio-pika==10.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "pytest-cov==7.1.0",
+    "pytest-timeout==2.4.0",
+    "ruff==0.16.9",
+    "mypy==2.3.1",
+    "vulture==2.16",
+    "deptry==0.25.1",
+]
+
+[build-system]
+requires = ["hatchling==1.32.4"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/app"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "C4", "UP", "ARG", "SIM", "TID", "RUF",
+    "PLC0415", "T201", "BLE001",
+    "FIX001", "FIX002", "FIX004",
+    "ASYNC210", "ASYNC212", "ASYNC220", "ASYNC221", "ASYNC222", "ASYNC230", "ASYNC250", "ASYNC251",
+    "ERA", "C901", "S", "DTZ", "PT011", "PGH003", "PGH004",
+]
+ignore = ["B008", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"requests".msg = "Использовать httpx вместо requests."
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S106", "S113", "ARG", "T201"]
+"tests/fixtures/database.py" = ["S603", "ASYNC221"]
+"src/app/services/payment_processing.py" = ["S311"]
+"tests/e2e/**" = ["S603"]
+"src/app/const/auth.py" = ["S105"]
+"migrations/**" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+enable_error_code = ["ignore-without-code"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.vulture]
+min_confidence = 70
+paths = ["src"]
+
+[tool.deptry]
+extend_exclude = ["migrations"]
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["uvicorn", "asyncpg", "alembic"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+pythonpath = ["."]
+testpaths = ["tests/unit", "tests/integration"]
+timeout = 120
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

@@ -1,0 +1,1 @@
+"""Backend-пакет FastAPI."""
