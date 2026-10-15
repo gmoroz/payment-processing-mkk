@@ -1,0 +1,106 @@
+x-backend-environment: &backend-environment
+  DEBUG: "${DEBUG:-false}"
+  DB_URL: postgresql://app:localdev@postgres:5432/app
+  API_KEY: "${API_KEY:?задайте API_KEY, см. README}"
+  RABBITMQ_URL: amqp://app:localdev@rabbitmq:5672/
+
+x-backend-image: &backend-image
+  build:
+    context: ./backend
+  image: ${BACKEND_IMAGE:-payment-processing-mkk-backend:local}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: localdev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 2s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.1.8-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: app
+      RABBITMQ_DEFAULT_PASS: localdev
+    ports:
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  migrate:
+    <<: *backend-image
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+
+  api:
+    <<: *backend-image
+    environment: *backend-environment
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os, urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/health', headers={'X-API-Key': os.environ['API_KEY']}); urllib.request.urlopen(request)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  consumer:
+    <<: *backend-image
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.consumer"]
+    restart: unless-stopped
+
+  relay:
+    <<: *backend-image
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.relay"]
+    restart: unless-stopped
+
+  webhook-echo:
+    image: ealen/echo-server@sha256:ec8a6e95890df937a1eb5fafca033a32172d4f43c1fea1f302931d5f230a137f
+    expose:
+      - "80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
